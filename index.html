@@ -174,7 +174,10 @@ ${nw.overdue?`<button class="btn" style="font-size:11px;padding:6px 8px" onclick
 <div class="metric"><p class="metric-label">Peso</p><p class="metric-val">${bwk?state.bodyWeights[bwk]+" kg":"—"}</p></div>
 <div class="metric"><p class="metric-label">Aderenza 7gg</p><p class="metric-val">${weekAdh()}/7</p></div></div>
 <div class="card"><button class="btn" style="width:100%" onclick="genReport()">Copia report per Claude</button></div>
-<div class="card"><button class="btn" style="width:100%" onclick="shareExport()">Esporta / Condividi JSON</button></div>`}
+<div class="card" style="display:flex;flex-direction:column;gap:8px">
+<button class="btn-p" style="width:100%" onclick="shareExport()">Salva su OneDrive</button>
+<button class="btn" style="width:100%" onclick="autoSaveDownload()">Salva in Download</button>
+</div>`}
 
 function renderWorkout(c){
 if(!activeSess){c.innerHTML=`<p style="font-size:18px;font-weight:600;margin-bottom:12px">Allenamenti</p>`;
@@ -308,8 +311,9 @@ c.innerHTML=`<p style="font-size:18px;font-weight:600;margin-bottom:14px">Gestio
 <p style="font-size:11px;color:var(--text3);margin-top:8px">🟢 fatto  🔴 saltato  🟠 sospeso  ⬜ futuro</p></div>
 <div class="card"><p style="font-size:14px;font-weight:600;margin-bottom:10px">Backup</p>
 <div style="display:flex;flex-direction:column;gap:8px">
-<button class="btn" onclick="shareExport()">Esporta / Condividi JSON</button>
-<button class="btn" onclick="downloadExport()">Download JSON</button>
+<button class="btn-p" onclick="shareExport()">Salva su OneDrive</button>
+<button class="btn" onclick="autoSaveDownload()">Salva in Download</button>
+<button class="btn" onclick="downloadExport()">Download con data (storico)</button>
 <button class="btn" onclick="document.getElementById('import-area').style.display='block'">Importa JSON</button>
 <div id="import-area" style="display:none">
 <textarea id="import-text" placeholder="Incolla il JSON..." style="width:100%;min-height:60px;padding:8px;border-radius:8px;border:1.5px solid var(--border2);font-size:11px;font-family:monospace;margin-bottom:8px;background:var(--card);color:var(--text);box-sizing:border-box"></textarea>
@@ -332,7 +336,8 @@ function setExIdx(i){exIdx=i;render()}
 function updSet(dk,eid,si,field,val){state.workouts[dk].exercises[eid].sets[si][field]=val;save();if(field==="confirmed")render()}
 function confirmS(dk,eid,si,rest){state.workouts[dk].exercises[eid].sets[si].confirmed=true;save();if(rest>0)timerEnd=Date.now()+rest*1000;render()}
 function updNote(dk,eid,note){state.workouts[dk].exercises[eid].notes=note;save()}
-function completeW(dk){state.workouts[dk].completed=true;save();activeSess=null;timerEnd=null;switchTab("home")}
+function completeW(dk){state.workouts[dk].completed=true;save();activeSess=null;timerEnd=null;
+autoSaveDownload(true);switchTab("home")}
 function saveBw(){const v=document.getElementById("bw-input")?.value;if(v){state.bodyWeights[mealDate]=+v;save();render()}}
 
 function toggleMealAll(date,key){
@@ -357,15 +362,22 @@ r+="\nADERENZA 7GG: "+weekAdh()+"/7 giorni completi";
 navigator.clipboard.writeText(r).then(()=>alert("Report copiato! Incollalo su Claude.")).catch(()=>{prompt("Copia questo report:",r)})}
 
 async function shareExport(){
-const json=JSON.stringify(state,null,2);const blob=new Blob([json],{type:"application/json"});
-const file=new File([blob],"tracker-"+dateStr()+".json",{type:"application/json"});
+const json=JSON.stringify(state,null,2);const fname="fittracker-"+dateStr()+".json";
+const blob=new Blob([json],{type:"application/json"});
+const file=new File([blob],fname,{type:"application/json"});
 if(navigator.share&&navigator.canShare?.({files:[file]})){
-try{await navigator.share({files:[file],title:"FitTracker Backup",text:"Backup allenamento"});return}catch(e){}}
+try{await navigator.share({files:[file],title:"FitTracker Backup",text:"Backup "+dateStr()});return}catch(e){}}
 downloadExport()}
 
 function downloadExport(){
 const json=JSON.stringify(state,null,2);const blob=new Blob([json],{type:"application/json"});
 const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="tracker-"+dateStr()+".json";a.click();URL.revokeObjectURL(url)}
+
+function autoSaveDownload(silent){
+const json=JSON.stringify(state,null,2);const fname="fittracker-"+dateStr()+".json";
+const blob=new Blob([json],{type:"application/json"});
+const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=fname;a.click();URL.revokeObjectURL(url);
+if(!silent)alert("Salvato come "+fname+"\nStesso giorno = sovrascrive. Giorno diverso = file nuovo.")}
 
 function importJson(){try{const p=JSON.parse(document.getElementById("import-text").value);
 if(!p.schedule)p.schedule=buildSched(p.cycleStart||CYCLE_START);state=p;save();render();alert("Dati caricati!")}catch(e){alert("JSON non valido")}}
