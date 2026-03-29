@@ -364,10 +364,16 @@ navigator.clipboard.writeText(r).then(()=>alert("Report copiato! Incollalo su Cl
 async function shareExport(){
 const json=JSON.stringify(state,null,2);const fname="fittracker-"+dateStr()+".json";
 const blob=new Blob([json],{type:"application/json"});
-const file=new File([blob],fname,{type:"application/json"});
-if(navigator.share&&navigator.canShare?.({files:[file]})){
-try{await navigator.share({files:[file],title:"FitTracker Backup",text:"Backup "+dateStr()});return}catch(e){}}
-downloadExport()}
+const file=new File([blob],fname,{type:"application/json",lastModified:Date.now()});
+try{
+if(navigator.canShare&&navigator.canShare({files:[file]})){
+await navigator.share({files:[file],title:"FitTracker Backup"});return}
+}catch(e){if(e.name!=="AbortError"){}}
+try{
+await navigator.share({title:"FitTracker Backup",text:json});return
+}catch(e){}
+const url=URL.createObjectURL(blob);window.open(url);URL.revokeObjectURL(url);
+alert("Il tuo browser non supporta la condivisione diretta.\nUsa il pulsante 'Salva in Download' e poi condividi il file manualmente da Gestione File → OneDrive.")}
 
 function downloadExport(){
 const json=JSON.stringify(state,null,2);const blob=new Blob([json],{type:"application/json"});
