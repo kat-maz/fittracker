@@ -216,7 +216,7 @@ const timerExpired=timerEnd&&!timerPaused&&now>=timerEnd;
 const timerStopped=timerPaused&&timerPausedLeft>0;
 if(timerActive){const left=Math.ceil((timerEnd-now)/1000);
 h+=`<div class="timer-box"><p style="font-size:12px;color:var(--purple);font-weight:600;margin-bottom:4px">Recupero</p>
-<p style="font-size:40px;font-weight:600;color:var(--purple);font-variant-numeric:tabular-nums">${fmtTime(left)}</p>
+<p id="timer-countdown" style="font-size:40px;font-weight:600;color:var(--purple);font-variant-numeric:tabular-nums">${fmtTime(left)}</p>
 <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
 <button class="btn" style="font-size:12px;padding:4px 12px" onclick="timerEnd+=30000;render()">+30s</button>
 <button class="btn" style="font-size:12px;padding:4px 12px" onclick="timerStop()">⏸ Stop</button>
@@ -475,7 +475,18 @@ Object.keys(state.mealDays).forEach(d=>{if(d>=from&&d<=to)delete state.mealDays[
 state.cycleStart=newStart;state.schedule=buildSched(newStart);save();activeSess=null;render()}
 
 // Timer tick
-setInterval(()=>{if(currentTab==="workout"&&(timerEnd||timerPaused))render()},1000);
+setInterval(()=>{
+  if(currentTab!=="workout")return;
+  const now=Date.now();
+  // Scaduto → render completo una volta sola per mostrare il banner "Vai!"
+  if(timerEnd&&!timerPaused&&now>=timerEnd){timerEnd=0;render();return;}
+  // In corso → aggiorna solo il testo del countdown, senza toccare il DOM degli input
+  if(timerEnd&&!timerPaused&&now<timerEnd){
+    const el=document.getElementById("timer-countdown");
+    if(el)el.textContent=fmtTime(Math.ceil((timerEnd-now)/1000));
+    else render(); // primo tick: il box non esiste ancora, render completo
+  }
+},1000);
 
 // Init
 load();render();
