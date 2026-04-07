@@ -149,6 +149,20 @@ else if(currentTab==="body")renderBody(c);
 else if(currentTab==="charts")renderCharts(c);
 else if(currentTab==="settings")renderSettings(c)}
 
+// render che non distrugge la tastiera: se un input/select/textarea ha il focus, rimanda
+function safeRender(){
+  const tag=document.activeElement?.tagName;
+  if(tag==="INPUT"||tag==="SELECT"||tag==="TEXTAREA"){
+    // aggiorna solo il countdown se presente, nient'altro
+    if(timerEnd&&!timerPaused){
+      const el=document.getElementById("timer-countdown");
+      if(el)el.textContent=fmtTime(Math.ceil((timerEnd-Date.now())/1000));
+    }
+    return;
+  }
+  render();
+}
+
 function renderHome(c){
 const today=dateStr();const wk=Math.min(CYCLE_LEN,Math.max(1,weekNum(today,state.cycleStart)));const ph=phase(wk);const nw=nextWorkout();
 const bwk=Object.keys(state.bodyWeights).sort().pop();
@@ -343,16 +357,16 @@ state.workouts[dk]={sessionId:entry.sessionId,date:dk,week:wk,exercises,complete
 if(entry.overdue&&dk!==entry.date)state.schedule=state.schedule.map(s=>s.date===entry.date?{...s,date:dk}:s);
 save();activeSess={...entry,date:dk};exIdx=0;switchTab("workout")}
 
-function confirmSet(dk,eid,si){state.workouts[dk].exercises[eid].sets[si].confirmed=true;save();render()}
-function editSet(dk,eid,si){state.workouts[dk].exercises[eid].sets[si].confirmed=false;save();render()}
+function confirmSet(dk,eid,si){state.workouts[dk].exercises[eid].sets[si].confirmed=true;save();safeRender()}
+function editSet(dk,eid,si){state.workouts[dk].exercises[eid].sets[si].confirmed=false;save();safeRender()}
 function timerToggle(sec){
   if(timerPaused){timerResume();return}
   if(timerEnd&&Date.now()<timerEnd){timerStop();return}
-  timerDuration=sec;timerEnd=Date.now()+sec*1000;timerPaused=false;timerPausedLeft=0;render()}
-function timerStop(){timerPausedLeft=Math.max(0,Math.ceil((timerEnd-Date.now())/1000));timerPaused=true;timerEnd=null;render()}
-function timerResume(){timerEnd=Date.now()+timerPausedLeft*1000;timerPaused=false;timerPausedLeft=0;render()}
-function timerReset(){timerEnd=Date.now()+timerDuration*1000;timerPaused=false;timerPausedLeft=0;render()}
-function timerClear(){timerEnd=null;timerPaused=false;timerPausedLeft=0;render()}
+  timerDuration=sec;timerEnd=Date.now()+sec*1000;timerPaused=false;timerPausedLeft=0;safeRender()}
+function timerStop(){timerPausedLeft=Math.max(0,Math.ceil((timerEnd-Date.now())/1000));timerPaused=true;timerEnd=null;safeRender()}
+function timerResume(){timerEnd=Date.now()+timerPausedLeft*1000;timerPaused=false;timerPausedLeft=0;safeRender()}
+function timerReset(){timerEnd=Date.now()+timerDuration*1000;timerPaused=false;timerPausedLeft=0;safeRender()}
+function timerClear(){timerEnd=null;timerPaused=false;timerPausedLeft=0;safeRender()}
 function skipW(d){state.workouts[d]={...(state.workouts[d]||{}),skipped:true,date:d};save();render()}
 function setExIdx(i){exIdx=i;render()}
 function updSet(dk,eid,si,field,val){state.workouts[dk].exercises[eid].sets[si][field]=val;save()}
@@ -478,13 +492,11 @@ state.cycleStart=newStart;state.schedule=buildSched(newStart);save();activeSess=
 setInterval(()=>{
   if(currentTab!=="workout")return;
   const now=Date.now();
-  // Scaduto → render completo una volta sola per mostrare il banner "Vai!"
   if(timerEnd&&!timerPaused&&now>=timerEnd){timerEnd=0;render();return;}
-  // In corso → aggiorna solo il testo del countdown, senza toccare il DOM degli input
   if(timerEnd&&!timerPaused&&now<timerEnd){
     const el=document.getElementById("timer-countdown");
     if(el)el.textContent=fmtTime(Math.ceil((timerEnd-now)/1000));
-    else render(); // primo tick: il box non esiste ancora, render completo
+    else safeRender();
   }
 },1000);
 
